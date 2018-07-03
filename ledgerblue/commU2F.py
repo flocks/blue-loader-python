@@ -181,6 +181,7 @@ class HIDDevice(U2FDevice):
             resp = b''.join(int2byte(v) for v in resp_vals)
             if resp[:5] == cid + int2byte(STAT_ERR):
                 raise U2FHIDError(byte2int(resp[7]))
+        print(binascii.hexlify(resp))
 
         if not resp:
             raise exc.DeviceError("Invalid response from device!")
@@ -197,6 +198,7 @@ class HIDDevice(U2FDevice):
                 raise exc.DeviceError("Wrong CID from device!")
             if byte2int(resp[4:5]) != seq & 0x7f:
                 raise exc.DeviceError("Wrong SEQ from device!")
+            print(binascii.hexlify(resp))
             seq += 1
             new_data = resp[5:min(5 + data_len, HID_RPT_SIZE)]
             data_len -= len(new_data)

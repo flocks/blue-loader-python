@@ -28,6 +28,9 @@ class IntelHexArea:
         def getData(self):
                 return self.data
 
+        def setData(self, data):
+                self.data = data
+
 def insertAreaSorted(areas, area):
         i=0
         while i < len(areas):

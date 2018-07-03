@@ -17,31 +17,18 @@
 ********************************************************************************
 """
 
+from .ecWrapper import PrivateKey
+from .comm import getDongle
+from .hexParser import IntelHexParser, IntelHexPrinter
+from .hexLoader import HexLoader
+from .deployed import getDeployedSecretV1, getDeployedSecretV2
 import argparse
+import struct
+import binascii
+import sys
 
-def get_argparser():
-	parser = argparse.ArgumentParser(description="Generate a Custom CA public-private keypair and print it to console.")
-	return parser
-
-def hexstr(bstr):
-	if (sys.version_info.major == 3):
-		return binascii.hexlify(bstr).decode()
-	if (sys.version_info.major == 2):
-		return binascii.hexlify(bstr)
-	return ""
-
-if __name__ == '__main__':
-	from .ecWrapper import PrivateKey
-	from .comm import getDongle
-	from .hexParser import IntelHexParser, IntelHexPrinter
-	from .hexLoader import HexLoader
-	from .deployed import getDeployedSecretV1, getDeployedSecretV2
-	import struct
-	import binascii
-	import sys
-
-	get_argparser().parse_args()
-	privateKey = PrivateKey()
-	publicKey = hexstr(privateKey.pubkey.serialize(compressed=False))
-	print("Public key : %s" % publicKey)
-	print("Private key: %s" % privateKey.serialize())
+privateKey = PrivateKey()
+#5aa7f507c429e2bb023f56bd90de2cca7cf5b1bc465342d3012f890a8aea7405
+publicKey = binascii.hexlify(privateKey.pubkey.serialize(compressed=False))
+print("Public key : %s" % publicKey)
+print("Private key: %s" % privateKey.serialize())

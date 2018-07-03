@@ -41,7 +41,7 @@ BOLOS_TAG_DEPENDENCY = 0x06
 
 def encodelv(v):
 	l = len(v)
-	s = b""
+	s = ""
 	if l < 128:
 		s += struct.pack(">B", l)
 	elif l < 256:
@@ -56,8 +56,11 @@ def encodelv(v):
 	return s
 
 def encodetlv(t, v):
+	print(type(t))
+	print(type(v))
 	l = len(v)
 	s = struct.pack(">B", t)
+	print(type(s))
 	if l < 128:
 		s += struct.pack(">B", l)
 	elif l < 256:
@@ -207,8 +210,6 @@ class HexLoader:
 			if SCP_DEBUG:
 				print(binascii.hexlify(paddedData))
 			cipher = AES.new(self.scp_enc_key, AES.MODE_CBC, self.scp_enc_iv)
-			if sys.version_info.major == 2:
-				paddedData = bytes(paddedData)
 			encryptedData = cipher.encrypt(paddedData)
 			self.scp_enc_iv = encryptedData[-16:]
 			if SCP_DEBUG:
@@ -249,7 +250,7 @@ class HexLoader:
 				print(binascii.hexlify(data))
 			# MAC
 			cipher = AES.new(self.scp_mac_key, AES.MODE_CBC, self.scp_mac_iv)
-			macData = cipher.encrypt(bytes(data[0:-SCP_MAC_LENGTH]))
+			macData = cipher.encrypt(data[0:-SCP_MAC_LENGTH])
 			self.scp_mac_iv = macData[-16:]
 			if self.scp_mac_iv[-SCP_MAC_LENGTH:] != data[-SCP_MAC_LENGTH:] :
 				raise BaseException("Invalid SCP MAC")
@@ -260,8 +261,8 @@ class HexLoader:
 				print(binascii.hexlify(data))
 			# ENC
 			cipher = AES.new(self.scp_enc_key, AES.MODE_CBC, self.scp_enc_iv)
-			self.scp_enc_iv = bytes(data[-16:])
-			data = cipher.decrypt(bytes(data))
+			self.scp_enc_iv = data[-16:]
+			data = cipher.decrypt(data)
 			l = len(data) - 1
 			while (data[l] != padding_char):
 				l-=1
@@ -272,7 +273,7 @@ class HexLoader:
 
 			if SCP_DEBUG:
 				print(binascii.hexlify(data))
-		else:		
+		else:
 			cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
 			decryptedData = cipher.decrypt(data)
 			if SCP_DEBUG:
@@ -313,13 +314,13 @@ class HexLoader:
 		bootadr |= 1
 		data = b'\x09' + struct.pack('>I', bootadr)
 		if (signature != None):
-			data += struct.pack('>B', len(signature)) + signature
+			data += bytes(chr(len(signature)) + signature)
 		self.exchange(self.cla, 0x00, 0x00, 0x00, data)
 
 	def commit(self, signature=None):
 		data = b'\x09'
 		if (signature != None):
-			data += struct.pack('>B', len(signature)) + signature
+			data += bytes(struct.pack('>B', len(signature)) + signature)
 		self.exchange(self.cla, 0x00, 0x00, 0x00, data)
 
 	def createAppNoInstallParams(self, appflags, applength, appname, icon=None, path=None, iconOffset=None, iconSize=None, appversion=None):
@@ -345,7 +346,7 @@ class HexLoader:
 		self.createappParams = None #data[1:]
 		self.exchange(self.cla, 0x00, 0x00, 0x00, data)						
 
-	def createApp(self, code_length, data_length=0, install_params_length=0, flags=0, bootOffset=1):
+	def createApp(self, code_length, data_length=0, install_params_length=0, flags=0, bootOffset=1, targetVersion=None):
 		#keep the create app parameters to be included in the load app hash
 		self.createappParams = struct.pack('>IIIII', code_length, data_length, install_params_length, flags, bootOffset)
 		data = b'\x0B' + self.createappParams
@@ -359,7 +360,7 @@ class HexLoader:
 		if len(appfullhash) != 32:
 			raise BaseException("Invalid hash format, sha256 expected")
 		data = b'\x15' +  appfullhash
-		self.exchange(self.cla, 0x00, 0x00, 0x00, data)
+		self.exchange(self.cla, 0x00, 0x00, 0x00, data)						
 
 	def getVersion(self):
 		data = b'\x10'
@@ -389,7 +390,7 @@ class HexLoader:
 		response = self.exchange(self.cla, 0x00, 0x00, 0x00, data)
 		if sys.version_info.major == 2:
 			response = bytearray(response)
-		#print binascii.hexlify(response[0])
+		print(binascii.hexlify(response[0]))
 		result = []
 		offset = 0
 		if len(response) > 0:
@@ -421,25 +422,9 @@ class HexLoader:
 					offset += 1 + response[offset]
 					result.append(item)
 		return result
+		
 
-	def getMemInfo(self):
-		response = self.exchange(self.cla, 0x00, 0x00, 0x00, b'\x11')
-		if sys.version_info.major == 2:
-			response = bytearray(response)
-		item = {}
-		offset = 0
-		item['systemSize'] = (response[offset] << 24) | (response[offset + 1] << 16) | (response[offset + 2] << 8) | response[offset + 3]
-		offset += 4
-		item['applicationsSize'] = (response[offset] << 24) | (response[offset + 1] << 16) | (response[offset + 2] << 8) | response[offset + 3]
-		offset += 4
-		item['freeSize'] = (response[offset] << 24) | (response[offset + 1] << 16) | (response[offset + 2] << 8) | response[offset + 3]
-		offset += 4
-		item['usedAppSlots'] = (response[offset] << 24) | (response[offset + 1] << 16) | (response[offset + 2] << 8) | response[offset + 3]
-		offset += 4
-		item['totalAppSlots'] = (response[offset] << 24) | (response[offset + 1] << 16) | (response[offset + 2] << 8) | response[offset + 3]
-		return item
-
-	def load(self, erase_u8, max_length_per_apdu, hexFile, reverse=False, doCRC=True):
+	def load(self, erase_u8, max_length_per_apdu, hexFile, reverse=False, doCRC=True, targetId=None, targetVersion=None):
 		if (max_length_per_apdu > self.max_mtu):
 			max_length_per_apdu = self.max_mtu
 		initialAddress = 0
@@ -447,6 +432,11 @@ class HexLoader:
 			initialAddress = hexFile.minAddr()
 		sha256 = hashlib.new('sha256')
 		# stat by hashing the create app params to ensure complete app signature
+		if (targetId != None and (targetId&0xF) > 3):
+			if (targetVersion == None):
+				print("Target version is not set, application hash will not match!")
+			#encore targetId U4LE, and version string bytes
+			sha256.update(struct.pack('>I', targetId) + bytes(targetVersion, 'ascii'))
 		if self.createappParams:
 			sha256.update(self.createappParams)
 		areas = hexFile.getAreas()
@@ -477,7 +467,7 @@ class HexLoader:
 					if (chunkLen < self.cleardata_block_len):
 						raise Exception("Cannot transport not block aligned data with fixed block len")
 					chunkLen -= chunkLen%self.cleardata_block_len;
-				# pad with 00's when not complete block and performing NENC
+				# padd with 00's when not complete block and performing NENC
 				if reverse:
 					chunk = data[offset-chunkLen : offset]
 					self.loadSegmentChunk(offset-chunkLen, bytes(chunk))
@@ -503,8 +493,8 @@ class HexLoader:
 		self.exchange(self.cla, 0x00, 0x00, 0x00, data)
 
 	def setupCustomCA(self, name, public):
-		data = b'\x12' + struct.pack('>B', len(name)) + name.encode() + struct.pack('>B', len(public)) + public
-		self.exchange(self.cla, 0x00, 0x00, 0x00, data)
+		data = b'\x12' + struct.pack('>B',len(name)) + name +  struct.pack('>B',len(public)) + public
+		self.exchange(self.cla, 0x00, 0x00, 0x00, bytes(data))
 
 	def runApp(self, name):
 		data = name

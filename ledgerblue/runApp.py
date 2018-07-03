@@ -17,44 +17,43 @@
 ********************************************************************************
 """
 
+from .ecWrapper import PrivateKey
+from .comm import getDongle
+from .hexParser import IntelHexParser, IntelHexPrinter
+from .hexLoader import HexLoader
+from .deployed import getDeployedSecretV1, getDeployedSecretV2
 import argparse
-
-def get_argparser():
-	parser = argparse.ArgumentParser("Run an application on the device.")
-	parser.add_argument("--targetId", help="The device's target ID (default is Ledger Blue)", type=auto_int)
-	parser.add_argument("--apdu", help="Display APDU log", action='store_true')
-	parser.add_argument("--rootPrivateKey", help="""The Signer private key used to establish a Secure Channel (otherwise
-a random one will be generated)""")
-	parser.add_argument("--appName", help="The name of the application to run")
-	return parser
+import struct
+import binascii
+import sys
 
 def auto_int(x):
-	return int(x, 0)
+    return int(x, 0)
 
-if __name__ == '__main__':
-	from .ecWrapper import PrivateKey
-	from .comm import getDongle
-	from .hexParser import IntelHexParser, IntelHexPrinter
-	from .hexLoader import HexLoader
-	from .deployed import getDeployedSecretV1, getDeployedSecretV2
-	import struct
-	import binascii
-	import sys
+parser = argparse.ArgumentParser()
+parser.add_argument("--targetId", help="Set the chip target ID", type=auto_int)
+parser.add_argument("--apdu", help="Display APDU log", action='store_true')
+parser.add_argument("--rootPrivateKey", help="Set the root private key")
+parser.add_argument("--appName", help="Name of the application to run")
 
-	args = get_argparser().parse_args()
 
-	if args.targetId is None:
-		args.targetId = 0x31000002
-	if args.rootPrivateKey is None:
-		privateKey = PrivateKey()
-		publicKey = binascii.hexlify(privateKey.pubkey.serialize(compressed=False))
-		print("Generated random root public key : %s" % publicKey)
-		args.rootPrivateKey = privateKey.serialize()
-	if args.appName is None:
-		raise Exception("Missing appname to run")
+args = parser.parse_args()
 
-	dongle = getDongle(args.apdu)
+if args.targetId is None:
+	args.targetId = 0x31000002
+if args.rootPrivateKey is None:
+	privateKey = PrivateKey()
+	publicKey = binascii.hexlify(privateKey.pubkey.serialize(compressed=False))
+	print("Generated random root public key : %s" % publicKey)
+	args.rootPrivateKey = privateKey.serialize()
+if args.appName is None:
+	raise Exception("Missing appname to run")
 
-	loader = HexLoader(dongle, 0xe0)
 
-	loader.runApp(args.appName)
+dongle = getDongle(args.apdu)
+
+secret=None
+#secret = getDeployedSecretV2(dongle, bytearray.fromhex(args.rootPrivateKey), args.targetId)
+loader = HexLoader(dongle, 0xe0, False, secret)
+
+loader.runApp(args.appName)

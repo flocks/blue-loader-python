@@ -121,16 +121,7 @@ class HIDDongleHIDAPI(Dongle, DongleWait):
 		if self.debug:
 			print("HID <= %s%.2x" % (hexstr(response), sw))
 		if sw != 0x9000:
-			possibleCause = "Unknown reason"
-			if sw == 0x6982:
-				possibleCause = "Have you uninstalled the existing CA with resetCustomCA first?"
-			if sw == 0x6985:
-				possibleCause = "Condition of use not satisfied (denied by the user?)"
-			if sw == 0x6a84 or sw == 0x6a85:
-				possibleCause = "Not enough space?"
-			if sw == 0x6484:
-				possibleCause = "Are you using the correct targetId?"
-			raise CommException("Invalid status %04x (%s)" % (sw, possibleCause), sw, response)
+			raise CommException("Invalid status %04x" % sw, sw, response)
 		return response
 
 	def waitFirstResponse(self, timeout):
@@ -193,10 +184,10 @@ def getDongle(debug=False, selectCommand=None):
 	dev = None
 	hidDevicePath = None
 	ledger = True
-	for hidDevice in hid.enumerate(0, 0):
-		if hidDevice['vendor_id'] == 0x2c97:
-			if ('interface_number' in hidDevice and hidDevice['interface_number'] == 0) or ('usage_page' in hidDevice and hidDevice['usage_page'] == 0xffa0):
-				hidDevicePath = hidDevice['path']
+	for hidDevice in hid.enumerate(11415):
+		print(hidDevice)
+		if hidDevice['vendor_id'] == 0x2c97 and ('interface_number' not in hidDevice or hidDevice['interface_number'] in [0,-1]):
+			hidDevicePath = hidDevice['path']
 	if hidDevicePath is not None:
 		dev = hid.device()
 		dev.open_path(hidDevicePath)

@@ -19,6 +19,7 @@
 
 import struct
 from .commException import CommException
+import binascii
 
 def wrapCommandAPDU(channel, command, packetSize, ble=False):
 	if packetSize < 3:
@@ -56,6 +57,8 @@ def wrapCommandAPDU(channel, command, packetSize, ble=False):
 	return bytearray(result)
 
 def unwrapResponseAPDU(channel, data, packetSize, ble=False):
+	print("********************************************")
+	print(binascii.hexlify(data))
 	sequenceIdx = 0		
 	offset = 0
 	if not ble:
